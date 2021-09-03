@@ -4,7 +4,7 @@ import com.diven.hive.blood.enums.CodeType;
 import com.diven.hive.blood.enums.JoinType;
 import com.diven.hive.blood.exception.SQLParseException;
 import com.diven.hive.blood.exception.UnSupportedException;
-import com.diven.common.hive.blood.model.*;
+import com.diven.hive.blood.model.*;
 import com.diven.hive.blood.utils.Check;
 import com.diven.hive.blood.utils.MetaCache;
 import com.diven.hive.blood.utils.ParseUtil;
@@ -15,9 +15,7 @@ import com.diven.hive.ql.parse.ParseDriver;
 import com.diven.hive.blood.enums.Constants;
 import com.diven.hive.blood.model.*;
 import org.antlr.runtime.tree.Tree;
-
-import java.util.Map.Entry;
-
+import java.util.*;
 import static com.diven.hive.blood.utils.HqlUtil.notNormalCol;
 
 /**
@@ -247,7 +245,7 @@ public class HiveSqlBloodFigureParser20210830 {
                     Integer qid = ParseUtil.generateTreeId(ast);
                     Select selectTemp;
                     Where whereTmp = whereMap.get(qid);
-                    for (Entry<String, Select> entry : queryMap.entrySet()) {
+                    for (Map.Entry<String, Select> entry : queryMap.entrySet()) {
                         selectTemp = entry.getValue();
                         if (selectTemp.getQid() == qid) {
                             selectTemp.setWhere(whereTmp);
@@ -618,7 +616,7 @@ public class HiveSqlBloodFigureParser20210830 {
      */
     private void setColLineList() {
         Map<String, List<Column>> map = new HashMap<String, List<Column>>();
-        for (Entry<String, List<Column>> entry : resultQueryMap.entrySet()) {
+        for (Map.Entry<String, List<Column>> entry : resultQueryMap.entrySet()) {
             if (entry.getKey().startsWith(Constants.TOK_EOF)) {
                 List<Column> value = entry.getValue();
                 for (Column column : value) {
@@ -632,7 +630,7 @@ public class HiveSqlBloodFigureParser20210830 {
             }
         }
 
-        for (Entry<String, List<Column>> entry : map.entrySet()) {
+        for (Map.Entry<String, List<Column>> entry : map.entrySet()) {
             String table = entry.getKey();
             List<Column> pList = entry.getValue();
             List<String> dList = dbMap.get(table);

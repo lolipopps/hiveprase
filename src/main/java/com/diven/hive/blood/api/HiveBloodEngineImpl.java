@@ -1,6 +1,5 @@
 package com.diven.hive.blood.api;
 import java.util.List;
-import com.diven.common.hive.blood.model.*;
 import com.diven.hive.blood.parse.HiveSqlBloodFigureParser;
 import com.diven.hive.blood.utils.HqlUtil;
 import com.diven.hive.blood.model.Base;

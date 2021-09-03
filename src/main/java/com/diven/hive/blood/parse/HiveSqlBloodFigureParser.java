@@ -12,7 +12,7 @@ import java.util.Stack;
 
 import com.diven.hive.blood.enums.CodeType;
 import com.diven.hive.blood.enums.JoinType;
-import com.diven.common.hive.blood.model.*;
+import com.diven.hive.blood.model.*;
 import com.diven.hive.blood.enums.Constants;
 import com.diven.hive.blood.exception.SQLParseException;
 import com.diven.hive.blood.exception.UnSupportedException;

@@ -5,7 +5,7 @@ import java.util.List;
 
 import com.diven.hive.blood.api.HiveBloodEngine;
 import com.diven.hive.blood.api.HiveBloodEngineImpl;
-import com.diven.common.hive.blood.model.*;
+import com.diven.hive.blood.model.*;
 import com.diven.hive.blood.model.Base;
 
 /**

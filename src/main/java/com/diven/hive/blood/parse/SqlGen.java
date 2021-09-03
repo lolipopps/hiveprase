@@ -1,11 +1,13 @@
 package com.diven.hive.blood.parse;
 
 import com.diven.hive.blood.enums.CodeType;
-import com.diven.common.hive.blood.model.*;
+import com.diven.hive.blood.model.*;
 import com.diven.hive.blood.utils.Check;
 import com.diven.hive.blood.model.Column;
 import com.diven.hive.blood.model.Select;
 import lombok.Data;
+
+import java.util.*;
 
 @Data
 public class SqlGen {
