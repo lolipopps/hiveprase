@@ -86,7 +86,6 @@ public class SqlGen {
             for (int i = 0; i <= subSelects.size() - 1; i++) {
                 Select first = subSelects.get(i);
                 Select second;
-
                 // 是不是最后一个 防止数组越界
                 if (i == subSelects.size() - 1) {
                     second = null;
@@ -106,7 +105,6 @@ public class SqlGen {
                 }
 
                 String temp = genSelect(first, tmp);
-
                 // 需要拼出字段
                 selectSql.append(temp);
                 // 后面有跟着的
@@ -116,16 +114,23 @@ public class SqlGen {
                     } else if (second.getJoin() != null) {
                         selectSql.append(second.getJoin().getJoinType().name());
                     }
-                } else {
+                }
+
+                if (select.getWhere() != null) {
+                    selectSql.append("\n where " + select.getWhere().getWhereExpr() + "\n");
+                }
+                if (select.getColSelect()) {
                     selectSql.append(") " + select.getCurrent());
                 }
+
+
                 subColumn.put(first.getCurrent(), tmp);
             }
             // }
         }
 
         // System.out.println(selectSql);
-        return selectSql.toString();
+        return selectSql.toString().replace("select \n,", "select\n");
     }
 
     public List<Select> getIndexSelect(Select select, Set<String> baseTable) {

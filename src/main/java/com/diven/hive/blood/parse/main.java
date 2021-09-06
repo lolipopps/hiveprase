@@ -31,7 +31,7 @@ public class main {
                         "\t\t(\n" +
                         "\t\t\tselect  cola1\n" +
                         "\t\t\t       ,cola2\n" +
-                        "\t\t\t       ,row_number() over(partition by cola1 order by cola2 desc) as rank\n" +
+                        "\t\t\t       ,cola3 as rank\n" +
                         "\t\t\tfrom dw.table_a1\n" +
                         "\t\t\twhere cola2 is not null \n" +
                         "\t\t) t1\n" +
@@ -50,8 +50,30 @@ public class main {
                         "\t\twhere cola1 is not null \n" +
                         "\t)t2\n" +
                         "\ton t1.cola1 = t2.colb1\n" +
-                        ") t1\n" +
+                        ") t3\n" +
                         "where cola3 is not null",
+//                    "insert into bbb " +
+//                            "select  t1.col1\n" +
+//                            "from\n" +
+//                            "(\n" +
+//                            "\tselect  col1,col2 as rank\n" +
+//                            "\tfrom dw.table1\n" +
+//                            "\twhere pt = '${-1d_pt}' \n" +
+//                            ") t1 where rank is not null\n",
+//                "insert into bbb\n" +
+//                        "select  t1.col1\n" +
+//                        "from\n" +
+//                        "(\n" +
+//                        "\tselect  col1\n" +
+//                        "\t       ,col2 as rank\n" +
+//                        "\tfrom dw.table1\n" +
+//                        "\twhere pt = '${-1d_pt}' \n" +
+//                        ") t1\n" +
+//                        "where rank is not null \n" +
+//                        "union all\n" +
+//                        "select  col1 as col1\n" +
+//                        "from dw.table2"
+
         };
 
         List<? extends Base> res = bloodEngine.parser(Arrays.asList(hqls));

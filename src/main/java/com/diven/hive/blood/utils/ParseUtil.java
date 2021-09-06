@@ -168,12 +168,23 @@ public final class ParseUtil {
     public static Integer getQueryParentId(Tree ast) {
         Tree _tree = ast;
         while (!(_tree = _tree.getParent()).isNil()) {
-            if (_tree.getType() == HiveParser.TOK_QUERY || _tree.getType() == HiveParser.TOK_SUBQUERY) {
+            if (_tree.getType() == HiveParser.TOK_QUERY) {
                 return generateTreeId(_tree);
             }
         }
         return -1;
     }
+
+    public static Integer getQueryChildId(Tree ast) {
+        Tree _tree = ast;
+        while (!(_tree = _tree.getChild(0)).isNil()) {
+            if (_tree.getType() == HiveParser.TOK_QUERY) {
+                return generateTreeId(_tree);
+            }
+        }
+        return -1;
+    }
+
 
     public static int generateTreeId(Tree tree) {
         return tree.getTokenStartIndex(); // + tree.getTokenStopIndex();

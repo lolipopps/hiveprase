@@ -214,7 +214,6 @@ public class HiveSqlBloodFigureParser {
                         Select pTree = ParseUtil.getSubQueryParent(ast);
                         qt.setPid(pTree.getPid());
                         qt.setParent(pTree.getParent());
-
                         selectList.add(qt);
                         if (joinClause && ast.getParent() == joinOn) { // TOK_SUBQUERY join TOK_TABREF ,此处的TOK_SUBQUERY信息不应该清除
                             for (Select entry : selectList) { //当前的查询范围
@@ -254,6 +253,39 @@ public class HiveSqlBloodFigureParser {
                 case HiveParser.TOK_QUERY:
                     Integer qid = ParseUtil.generateTreeId(ast);
                     Select selectTemp = null;
+
+
+                    // 最后一层是 TOK_QUERY 还要生成一层
+                    if (ast.getParent().isNil()) {
+                        Select qt = new Select();
+                        qt.setCurrent(currOutputTable);
+                        qt.setColSelect(true);
+                        qt.setCodeType(CodeType.SUB_SELECT);
+                        Select pTree = ParseUtil.getSubQueryParent(ast);
+                        qt.setId(ParseUtil.generateTreeId(ast));
+                        qt.setPid(pTree.getPid());
+                        qt.setParent(pTree.getParent());
+                        for (Column cc : cols) {
+                            cc.setToTable(qt.getCurrent());
+                        }
+                        qt.setColumnList(generateColLineList(cols, conditions));
+                        qt.setChildList(getSubQueryChilds(qt.getId()));
+                        if (Check.notEmpty(qt.getChildList())) {
+                            for (Select cqt : qt.getChildList()) {
+                                qt.getTableSet().addAll(cqt.getTableSet());  // 来源基础底表
+                                qt.getBaseTableSet().add(cqt.getCurrent());  // 来源临时表
+                                selectList.remove(cqt);  // 移除子节点信息
+                            }
+                        }
+                        selectList.add(qt);
+                        cols.clear();
+                        queryMap.clear();
+                        for (Select _qt : selectList) {
+                            if (qt.getParent().equals(_qt.getParent())) { //当前子查询才保存
+                                queryMap.put(_qt.getCurrent(), _qt);
+                            }
+                        }
+                    }
                     Where whereTmp = whereMap.get(qid);
                     for (Map.Entry<String, Select> entry : queryMap.entrySet()) {
                         selectTemp = entry.getValue();
@@ -263,28 +295,24 @@ public class HiveSqlBloodFigureParser {
                         }
                         if (whereTmp != null) {
                             for (Column col : selectTemp.getColumnList()) {
+                                col.getBaseTableSet().addAll(whereTmp.getBaseTableSet());
+                                col.getBaseColSet().addAll(whereTmp.getBaseColSet());
+
                                 col.getAllColSet().addAll(whereTmp.getColSet());
                                 col.getAllTableSet().addAll(whereTmp.getTableSet());
                             }
                         }
                     }
-                    // 最后一层是 TOK_QUERY 还要生成一层
-                    if (!ast.getParent().isNil()) {
-                        break;
-                    }
-//                    else {
-//                        selectTemp.setColSelect(true);
-//                    }
 
+                    break;
                 case HiveParser.TOK_SUBQUERY:
                     if (ast.getChildCount() == 2) {
-                        String tableAlias;
+                        String tableAlias = "";
                         if (ast.getChild(1).getType() != HiveParser.TOK_INSERT) {
                             tableAlias = BaseSemanticAnalyzer.unescapeIdentifier(ast.getChild(1).getText());
-                        } else {
-                            tableAlias = currOutputTable;
                         }
                         Select qt = new Select();
+                        qt.setQid(ParseUtil.getQueryChildId(ast));
                         qt.setCodeType(CodeType.SUB_SELECT);
                         qt.setCurrent(tableAlias.toLowerCase());
                         for (Column cc : cols) {
@@ -345,6 +373,7 @@ public class HiveSqlBloodFigureParser {
                     }
             }
         }
+
     }
 
 
