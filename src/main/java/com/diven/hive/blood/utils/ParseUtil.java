@@ -119,8 +119,9 @@ public final class ParseUtil {
         Tree _tree = ast;
         Select qt = new Select();
         while (!(_tree = _tree.getParent()).isNil()) {
-            if (_tree.getType() == HiveParser.TOK_SUBQUERY) {
+            if (_tree.getType() == HiveParser.TOK_SUBQUERY || _tree.getType() == HiveParser.TOK_QUERY ) {
                 qt.setPid(generateTreeId(_tree));
+                qt.setId(generateTreeId(_tree));
                 qt.setParent(BaseSemanticAnalyzer.getUnescapedName((ASTNode) _tree.getChild(1)));
                 return qt;
             }
@@ -158,7 +159,7 @@ public final class ParseUtil {
     public static Integer getSubQueryParentId(Tree ast) {
         Tree _tree = ast;
         while (!(_tree = _tree.getParent()).isNil()) {
-            if (_tree.getType() == HiveParser.TOK_SUBQUERY) {
+            if (_tree.getType() == HiveParser.TOK_SUBQUERY || _tree.getType() == HiveParser.TOK_QUERY ) {
                 return generateTreeId(_tree);
             }
         }
@@ -187,7 +188,7 @@ public final class ParseUtil {
 
 
     public static int generateTreeId(Tree tree) {
-        return tree.getTokenStartIndex(); // + tree.getTokenStopIndex();
+        return tree.getTokenStartIndex() + tree.getTokenStopIndex();
     }
 
 

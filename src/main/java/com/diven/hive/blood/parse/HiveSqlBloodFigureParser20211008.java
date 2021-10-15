@@ -1,29 +1,31 @@
 package com.diven.hive.blood.parse;
 
-import java.util.*;
-import java.util.Map.Entry;
-
 import com.diven.hive.blood.enums.CodeType;
-import com.diven.hive.blood.enums.JoinType;
-import com.diven.hive.blood.model.*;
 import com.diven.hive.blood.enums.Constants;
+import com.diven.hive.blood.enums.JoinType;
 import com.diven.hive.blood.exception.SQLParseException;
 import com.diven.hive.blood.exception.UnSupportedException;
+import com.diven.hive.blood.model.*;
+import com.diven.hive.blood.utils.Check;
 import com.diven.hive.blood.utils.MetaCache;
 import com.diven.hive.blood.utils.ParseUtil;
 import com.diven.hive.ql.parse.ASTNode;
+import com.diven.hive.ql.parse.BaseSemanticAnalyzer;
 import com.diven.hive.ql.parse.HiveParser;
 import com.diven.hive.ql.parse.ParseDriver;
 import org.antlr.runtime.tree.Tree;
-import com.diven.hive.blood.utils.Check;
-import com.diven.hive.ql.parse.BaseSemanticAnalyzer;
+
+import java.util.*;
+import java.util.Map.Entry;
+
+import static com.diven.hive.blood.utils.HqlUtil.notNormalCol;
 
 /**
  * @author huyingttai
  * @Description hive sql 解析深度优先遍历实现
  * @create 12:23 下午 2021/8/23
  */
-public class HiveSqlBloodFigureParser {
+public class HiveSqlBloodFigureParser20211008 {
 
     private final Map<String /*table*/, List<String/*column*/>> dbMap = new HashMap<String, List<String>>();
     private final List<Select> selectList = new ArrayList<Select>(); //子查询树形关系保存
@@ -36,13 +38,8 @@ public class HiveSqlBloodFigureParser {
     private final Stack<String> tableNameStack = new Stack<String>(); // 表名进库
     private final Stack<Boolean> joinStack = new Stack<Boolean>(); // 是否存在 关联 队列
     private final Stack<ASTNode> joinOnStack = new Stack<ASTNode>();
-
-    private final LinkedHashMap<String, Select> queryMap = new LinkedHashMap<String, Select>(); // 存储每个嵌套的语句
-    private final LinkedHashMap<String, Select> withQueryMap = new LinkedHashMap<String, Select>(); // 存储每个嵌套的语句
+    private final LinkedHashMap<String, Select> queryMap = new LinkedHashMap<String, Select>();
     private final Map<Integer, Select> queryMaps = new HashMap<Integer, Select>();
-
-    private boolean withQuery = false;
-
 
     private final HashMap<Integer, Where> whereMap = new HashMap<>();
     private final HashMap<Integer, Group> groupMap = new HashMap<>();
@@ -64,7 +61,7 @@ public class HiveSqlBloodFigureParser {
 
     private final BlockParser blockParser;
 
-    public HiveSqlBloodFigureParser() {
+    public HiveSqlBloodFigureParser20211008() {
         blockParser = new BlockParser();
         blockParser.setInputTables(inputTables);
         blockParser.setQueryMap(queryMap);
@@ -106,7 +103,9 @@ public class HiveSqlBloodFigureParser {
         if (ast.getToken() != null) {
             switch (ast.getToken().getType()) {
                 //  输入输出字段的处理
-                case HiveParser.TOK_SELEXPR: {
+                case HiveParser.TOK_SELEXPR:
+                    //解析需要插入的表
+                {
                     Tree tok_insert = ast.getParent().getParent();
                     Tree child = tok_insert.getChild(0).getChild(0);
                     String tName = BaseSemanticAnalyzer.getUnescapedName((ASTNode) child.getChild(0));
@@ -167,20 +166,22 @@ public class HiveSqlBloodFigureParser {
                     break;
                 }
 
-                case HiveParser.TOK_CREATETABLE: //create 语句
+                case HiveParser.TOK_CREATETABLE: //outputtable
                     isCreateTable = true;
                     String tableOut = blockParser.fillDB(BaseSemanticAnalyzer.getUnescapedName((ASTNode) ast.getChild(0)));
                     currOutputTable = tableOut;
                     outputTables.add(tableOut);
                     break;
-                case HiveParser.TOK_TAB:// //insert语句
+
+
+                case HiveParser.TOK_TAB:// 输出的表
                     String tableTab = BaseSemanticAnalyzer.getUnescapedName((ASTNode) ast.getChild(0));
                     String tableOut2 = blockParser.fillDB(tableTab);
                     currOutputTable = tableOut2;
                     outputTables.add(tableOut2);
                     break;
 
-                case HiveParser.TOK_TABREF:// from 表语句
+                case HiveParser.TOK_TABREF:// inputTable
                 {
                     ASTNode tabTree = (ASTNode) ast.getChild(0);
 
@@ -191,18 +192,8 @@ public class HiveSqlBloodFigureParser {
                             : BaseSemanticAnalyzer.getUnescapedName((ASTNode) tabTree.getChild(0))
                             + Constants.SPLIT_DOT + BaseSemanticAnalyzer.getUnescapedName((ASTNode) tabTree.getChild(1))
                     );
-                    // with 语法的
-                    Select tmpSelect;
-                    if (tableInFull.startsWith("default")) {
-                        tmpSelect = withQueryMap.get(tableInFull.split("\\.")[1]);
-                    } else {
-                        tmpSelect = new Select();
-                        tmpSelect.getTableSet().add(tableInFull);
-                        tmpSelect.getBaseTableSet().add(tableInFull);
-                    }
-
-
-                    inputTables.addAll(tmpSelect.getBaseTableSet());
+                    inputTables.add(tableInFull);
+                    queryMap.clear();
                     String alia = null;
                     if (ast.getChild(1) != null) { //(TOK_TABREF (TOK_TABNAME detail usersequence_client) c)
                         alia = ast.getChild(1).getText().toLowerCase();
@@ -211,11 +202,9 @@ public class HiveSqlBloodFigureParser {
                     }
                     Select qt = new Select();
                     qt.setCurrent(alia);
-                    qt.setAlias(alia);
                     qt.setCodeType(CodeType.TABLE);
-                    qt.getTableSet().addAll(tmpSelect.getTableSet());
-                    qt.getBaseTableSet().addAll(tmpSelect.getBaseTableSet());
-                    qt.setColumnList(tmpSelect.getColumnList());
+                    qt.getTableSet().add(tableInFull);
+                    qt.getBaseTableSet().add(tableInFull);
                     if (!isOnlyTable) {
                         qt.setQid(ParseUtil.getQueryParentId(ast));
                         qt.setId(ParseUtil.getQueryParentId(ast));
@@ -228,11 +217,6 @@ public class HiveSqlBloodFigureParser {
                     qt.setParent(pTree.getParent());
                     selectList.add(qt);
                     queryMap.put(qt.getCurrent(), qt);
-
-//                    if(withQuery){
-//                        withQueryMap.put(qt.getCurrent(), qt);
-//                    }
-
                     queryMaps.put(qt.getId(), qt);
 
                     break;
@@ -262,24 +246,20 @@ public class HiveSqlBloodFigureParser {
                         }
                     }
                     Where whereTmp = whereMap.get(qid);
-                    for (Map.Entry<Integer, Select> entry : queryMaps.entrySet()) {
+                    for (Entry<Integer, Select> entry : queryMaps.entrySet()) {
                         selectTmp = entry.getValue();
                         if (selectTmp.getQid() == qid) {
                             selectTmp.setWhere(whereTmp);
                             selectTmp.setGroup(groupMap.get(qid));
-                            if (whereTmp != null) {
-                                for (Column col : selectTmp.getColumnList()) {
-                                    col.getBaseTableSet().addAll(whereTmp.getBaseTableSet());
-                                    col.getBaseColSet().addAll(whereTmp.getBaseColSet());
-
-
-                                    col.getAllColSet().addAll(whereTmp.getColSet());
-                                    col.getAllTableSet().addAll(whereTmp.getTableSet());
-                                }
-                            }
-
                         }
-
+                        if (whereTmp != null) {
+                            for (Column col : selectTmp.getColumnList()) {
+                                col.getBaseTableSet().addAll(whereTmp.getBaseTableSet());
+                                col.getBaseColSet().addAll(whereTmp.getBaseColSet());
+                                col.getAllColSet().addAll(whereTmp.getColSet());
+                                col.getAllTableSet().addAll(whereTmp.getTableSet());
+                            }
+                        }
                     }
                     break;
                 }
@@ -304,10 +284,6 @@ public class HiveSqlBloodFigureParser {
                             } else {
                                 selectTmp.setQid(ParseUtil.generateTreeId(ast));
                                 selectTmp.setId(ParseUtil.generateTreeId(ast));
-                            }
-                            if (ast.getChild(0).getType() == HiveParser.TOK_UNION) {
-                                selectTmp.setColumnList(generateColLineList(unionCols, conditions));
-                                unionCols.clear();
                             }
                             selectTmp.setChildList(getQueryChilds(selectTmp.getId()));
                             queryMaps.put(selectTmp.getId(), selectTmp);
@@ -337,11 +313,8 @@ public class HiveSqlBloodFigureParser {
                         }
 
                         for (Select _qt : selectList) {
-                            if (selectTmp.getParent() != null) { //当前子查询才保存
+                            if (selectTmp.getParent() != null && selectTmp.getParent().equals(_qt.getParent())) { //当前子查询才保存
                                 queryMap.put(_qt.getAlias(), _qt);
-                                if (withQuery) {
-                                    withQueryMap.put(_qt.getCurrent(), _qt);
-                                }
                             }
                         }
                     }
@@ -364,7 +337,7 @@ public class HiveSqlBloodFigureParser {
                 default:
                     //1、过滤条件的处理join类
                     if (joinOn != null && joinOn.getTokenStartIndex() == ast.getTokenStartIndex() && joinOn.getTokenStopIndex() == ast.getTokenStopIndex()) {
-                        ASTNode astCon = (ASTNode) ast.getChild(1);
+                        ASTNode astCon = (ASTNode) ast.getChild(2);
                         Block joinBLock = blockParser.getBlockIteral(astCon);
                         Join join = new Join();
                         join.setId(ParseUtil.getSubQueryParentId(ast));
@@ -391,7 +364,7 @@ public class HiveSqlBloodFigureParser {
         List<Select> list = new ArrayList<Select>();
         for (int i = 0; i < selectList.size(); i++) {
             Select qt = selectList.get(i);
-            if (id == qt.getPid() && qt.getId() != qt.getPid()) {
+            if (id == qt.getPid()) {
                 list.add(qt);
             }
         }
@@ -470,17 +443,9 @@ public class HiveSqlBloodFigureParser {
     private void parseChildNodes(ASTNode ast) {
         int numCh = ast.getChildCount();
         if (numCh > 0) {
-            LinkedList<ASTNode> list = new LinkedList<>();
             for (int num = 0; num < numCh; num++) {
                 ASTNode child = (ASTNode) ast.getChild(num);
-                if (child.getType() == HiveParser.TOK_CTE) { // with 语法要优先处理
-                    list.addFirst(child);
-                } else {
-                    list.addLast(child);
-                }
-            }
-            for (ASTNode li : list) {
-                parseIteral(li);
+                parseIteral(child);
             }
         }
     }
@@ -502,7 +467,6 @@ public class HiveSqlBloodFigureParser {
                 case HiveParser.TOK_RIGHTOUTERJOIN:
                 case HiveParser.TOK_LEFTOUTERJOIN:
                 case HiveParser.TOK_JOIN:
-
                 case HiveParser.TOK_LEFTSEMIJOIN:
                 case HiveParser.TOK_MAPJOIN:
                 case HiveParser.TOK_FULLOUTERJOIN:
@@ -512,11 +476,10 @@ public class HiveSqlBloodFigureParser {
                     joinOnStack.push(joinOn);
                     joinOn = ast;
                     break;
-                case HiveParser.TOK_CTE:
-                    withQuery = true;
             }
         }
     }
+
 
     /**
      * 结束解析当前节点
@@ -562,47 +525,59 @@ public class HiveSqlBloodFigureParser {
                 case HiveParser.TOK_SELECT:
                     break;
                 case HiveParser.TOK_UNION:  //合并union字段信息
+                    mergeUnionCols();
                     processUnionStack(ast, parent); //union的子节点
                     break;
-                case HiveParser.TOK_CTE:
-                    withQuery = false;
-                    selectList.clear();
-                    queryMap.clear();
-                    queryMaps.clear();
-                    break;
+
 
             }
         }
     }
 
+    private void mergeUnionCols() {
+        ParseUtil.validateUnion(cols);
+        int size = cols.size();
+        int colNum = size / 2;
+        List<Column> list = new ArrayList<Column>(colNum);
+        for (int i = 0; i < colNum; i++) { //合并字段
+            Column col = cols.get(i);
+            for (int j = i + colNum; j < size; j = j + colNum) {
+                Column col2 = cols.get(j);
+                list.add(col2);
+                if (notNormalCol(col.getToNameParse()) && !notNormalCol(col2.getToNameParse())) {
+                    col.setToNameParse(col2.getToNameParse());
+                }
+                col.getColSet().addAll(col2.getColSet());
+                col.getAllColSet().addAll(col2.getAllColSet());
+                col.getTableSet().addAll(col2.getTableSet());
+                col.getAllTableSet().addAll(col2.getAllTableSet());
+                col.getBaseColSet().addAll(col2.getBaseColSet());
+                col.getBaseTableSet().addAll(col2.getBaseTableSet());
+                col.setColCondition(col.getColCondition() + Constants.SPLIT_AND + col2.getColCondition());
+                col.setBaseExpr(col.getBaseExpr() + Constants.SPLIT_AND + col2.getBaseExpr());
+            }
+        }
+        cols.removeAll(list); //移除已经合并的数据
+    }
+
     private void processUnionStack(ASTNode ast, Tree parent) {
         boolean isNeedAdd = parent.getType() == HiveParser.TOK_UNION;
         if (isNeedAdd) {
-            Integer id = ParseUtil.generateTreeId(ast);
-            // 获取 union 打上标记
-            for (Select select : selectList) {
-                if (select.getId() == id) {
-                    select.setUnion(true);
-                }
-            }
             if (parent.getChild(0) == ast && parent.getChild(1) != null) {//是第一节点)
                 //压栈
-                unionCols.addAll(ParseUtil.cloneList(cols));
-                cols.clear();
+                conditionsStack.push(ParseUtil.cloneSet(conditions));
                 conditions.clear();
+                colsStack.push(ParseUtil.cloneList(cols));
+                cols.clear();
             } else {  //无弟节点(是第二节点)
                 //出栈
-
-                //出栈
-                for (int i = 0; i < cols.size(); i++) {
-                    Column allColumn = unionCols.get(i);
-                    Column colColumn = cols.get(i);
-                    allColumn.getColSet().addAll(colColumn.getColSet());
-                    allColumn.getAllColSet().addAll(colColumn.getAllColSet());
-                    allColumn.getTableSet().addAll(colColumn.getTableSet());
-                    allColumn.getAllTableSet().addAll(colColumn.getAllTableSet());
-                    allColumn.getBaseColSet().addAll(colColumn.getBaseColSet());
-                    allColumn.getBaseTableSet().addAll(colColumn.getBaseTableSet());
+                selectList.get(selectList.size() - 1).setUnion(true);
+                if (!conditionsStack.isEmpty()) {
+                    conditions.addAll(conditionsStack.pop());
+                }
+                if (!colsStack.isEmpty()) {
+                    unionCols.addAll(0, colsStack.peek());
+                    cols.addAll(0, colsStack.pop());
                 }
             }
         }

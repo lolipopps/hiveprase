@@ -36,13 +36,11 @@ public class Column extends ColumnBase {
         this.colCondition = colCondition;
         this.toTable = toTable;
         this.colSet.addAll(block.getColSet());
-        this.allColSet.addAll(block.getColSet());
+        this.allColSet.addAll(block.getAllColSet());
         this.baseColSet.addAll(block.getBaseColSet());
-
         this.tableSet.addAll(block.getTableSet());
-        this.allTableSet.addAll(block.getTableSet());
+        this.allTableSet.addAll(block.getAllTableSet());
         this.baseTableSet.addAll(block.getBaseTableSet());
-
 
     }
 }

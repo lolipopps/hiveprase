@@ -2,6 +2,7 @@ package com.diven.hive.blood.model;
 
 import lombok.Data;
 
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -20,4 +21,6 @@ public class Block extends Base {
     private Set<String> baseColSet = new LinkedHashSet<String>();
     private Set<String> tableSet = new LinkedHashSet<String>();
     private Set<String> baseTableSet = new LinkedHashSet<String>();
+    private Set<String> allColSet = new HashSet<>();
+    private Set<String> allTableSet = new HashSet<>();
 }

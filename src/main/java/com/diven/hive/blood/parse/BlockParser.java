@@ -1,5 +1,6 @@
 package com.diven.hive.blood.parse;
 
+import com.diven.hive.blood.enums.CodeType;
 import com.diven.hive.blood.exception.SQLParseException;
 import com.diven.hive.blood.model.Block;
 import com.diven.hive.blood.model.Column;
@@ -19,7 +20,7 @@ import java.util.*;
 @Data
 public class BlockParser {
 
-    public Map<String, Select> queryMap;
+    public LinkedHashMap<String, Select> queryMap;
 
     public Set<String> inputTables;
 
@@ -44,6 +45,9 @@ public class BlockParser {
             bk1.getColSet().addAll(bk2.getColSet());
             bk1.getBaseColSet().addAll(bk2.getBaseColSet());
 
+            bk1.getAllColSet().addAll(bk2.getAllColSet());
+            bk1.getAllTableSet().addAll(bk2.getAllTableSet());
+
             bk1.getTableSet().addAll(bk2.getTableSet());
             bk1.getBaseTableSet().addAll(bk2.getBaseTableSet());
 
@@ -51,7 +55,7 @@ public class BlockParser {
             bk1.setBaseExpr(" " + bk1.getBaseExpr() + " " + ast.getText() + " " + bk2.getBaseExpr() + " ");
 
             return bk1;
-        } else if (ast.getType() == HiveParser.NOTEQUAL //判断条件  > < like in + = 等各种符号
+        } else if (ast.getType() == HiveParser.NOTEQUAL //判断条件  > < like in + = 等各种符号 not
                 || ast.getType() == HiveParser.EQUAL
                 || ast.getType() == HiveParser.LESSTHAN
                 || ast.getType() == HiveParser.LESSTHANOREQUALTO
@@ -66,18 +70,22 @@ public class BlockParser {
                 || ast.getType() == HiveParser.AMPERSAND
                 || ast.getType() == HiveParser.TILDE
                 || ast.getType() == HiveParser.BITWISEOR
-                || ast.getType() == HiveParser.BITWISEXOR) {
+                || ast.getType() == HiveParser.BITWISEXOR || ast.getType() == HiveParser.KW_NOT) {
 
             Block bk1 = getBlockIteral((ASTNode) ast.getChild(0));
 
             if (ast.getChild(1) == null) { // -1
-                bk1.setCondition(ast.getText() + bk1.getCondition());
-                bk1.setBaseExpr(ast.getText() + bk1.getBaseExpr());
+                if (ast.getType() != HiveParser.KW_NOT) {
+                    bk1.setCondition(ast.getText() + bk1.getCondition());
+                    bk1.setBaseExpr(ast.getText() + bk1.getBaseExpr());
+                }
             } else {
                 Block bk2 = getBlockIteral((ASTNode) ast.getChild(1));
                 bk1.getColSet().addAll(bk2.getColSet());
                 bk1.getBaseColSet().addAll(bk2.getBaseColSet());
 
+                bk1.getAllColSet().addAll(bk2.getAllColSet());
+                bk1.getAllTableSet().addAll(bk2.getAllTableSet());
 
                 bk1.setCondition(bk1.getCondition() + " " + ast.getText() + " " + bk2.getCondition());
                 bk1.setBaseExpr(bk1.getBaseExpr() + " " + ast.getText() + " " + bk2.getBaseExpr());
@@ -94,15 +102,16 @@ public class BlockParser {
         } else if (ast.getType() == HiveParser.TOK_FUNCTION) {
             String fun = ast.getChild(0).getText();
             Block col = ast.getChild(1) == null ? new Block() : getBlockIteral((ASTNode) ast.getChild(1));
+            if (ast.getParent().getType() == HiveParser.KW_NOT) {
+                col.setCondition(col.getCondition() + " not ");
+                col.setBaseExpr(col.getBaseExpr() + " not ");
+            }
             if ("when".equalsIgnoreCase(fun)) {
                 col.setCondition(getWhenCondition(ast, 1));
                 col.setBaseExpr(getWhenCondition(ast, 2));
                 Set<Block> processChilds = processChilds(ast, 1);
-
                 bkToBlock(col, processChilds);
                 // col.getBaseColSet().addAll(bkToBaseCols(col, processChilds));
-
-
                 return col;
             } else if ("IN".equalsIgnoreCase(fun)) {
                 col.setCondition(col.getCondition() + " in (" + blockCondToString(processChilds(ast, 2), 1) + ")");
@@ -139,7 +148,9 @@ public class BlockParser {
             column.setCondition(column.getCondition() + "[" + key.getCondition() + "]");
             column.setBaseExpr(column.getBaseExpr() + "[" + key.getBaseExpr() + "]");
             return column;
-        } else {
+        } else if(ast.getType() == HiveParser.TOK_WINDOWSPEC){
+            return parseBlock(ast);
+        }else{
             return parseBlock(ast);
         }
     }
@@ -221,8 +232,6 @@ public class BlockParser {
             Block bk = new Block();
             bk.setCondition(ast.getText());
             bk.setBaseExpr(ast.getText());
-//            bk.getColSet().add(ast.getText());
-//            bk.getBaseColSet().add(ast.getText());
             return bk;
         }
         return new Block();
@@ -235,7 +244,6 @@ public class BlockParser {
                 col.getColSet().addAll(colLine.getColSet());
             }
 
-
             if (Check.notEmpty(colLine.getBaseColSet())) {
                 col.getBaseColSet().addAll(colLine.getBaseColSet());
             }
@@ -247,6 +255,15 @@ public class BlockParser {
             if (Check.notEmpty(colLine.getBaseTableSet())) {
                 col.getBaseTableSet().addAll(colLine.getBaseTableSet());
             }
+
+            if (Check.notEmpty(colLine.getAllColSet())) {
+                col.getAllColSet().addAll(colLine.getAllColSet());
+            }
+
+            if (Check.notEmpty(colLine.getAllTableSet())) {
+                col.getAllTableSet().addAll(colLine.getAllTableSet());
+            }
+
         }
 
     }
@@ -327,11 +344,15 @@ public class BlockParser {
                 for (Column colLine : qt.getColumnList()) {
                     if (column.equalsIgnoreCase(colLine.getToNameParse())) { // col1 as col 看这个  col 来源
                         Block bk = new Block();
+
                         bk.setCondition(colLine.getColCondition());
                         bk.setBaseExpr(alia == null ? column : alia + Constants.SPLIT_DOT + column);
 
                         bk.setColSet(ParseUtil.cloneSet(colLine.getColSet()));
                         bk.setTableSet(ParseUtil.cloneSet(colLine.getTableSet()));
+
+                        bk.setAllColSet(ParseUtil.cloneSet(colLine.getAllColSet()));
+                        bk.setAllTableSet(ParseUtil.cloneSet(colLine.getAllTableSet()));
 
                         bk.getBaseColSet().add(qt.getCurrent() + Constants.SPLIT_DOT + column);
                         bk.getBaseTableSet().add(qt.getCurrent());
@@ -364,14 +385,20 @@ public class BlockParser {
         Block bk = new Block();
 
         // 不知道字段来源哪个表的 从最后一个取
-        _realTable = _realTable.split(Constants.SPLIT_AND)[0];
-        _alia = _alia.split(Constants.SPLIT_AND)[0];
+        String[] _realTables = _realTable.split(Constants.SPLIT_AND);
+        _realTable = _realTables[_realTables.length - 1];
+        String[] _alias = _alia.split(Constants.SPLIT_AND);
+        _alia = _alias[_alias.length - 1];
 
         bk.setCondition(_realTable + Constants.SPLIT_DOT + column);
         bk.setBaseExpr(alia == null ? column : alia + Constants.SPLIT_DOT + column);
 
+
         bk.getColSet().add(_realTable + Constants.SPLIT_DOT + column);
         bk.getTableSet().add(_realTable);
+
+        bk.getAllColSet().add(_realTable + Constants.SPLIT_DOT + column);
+        bk.getAllTableSet().add(_realTable);
 
         bk.getBaseColSet().add(alia == null ? _alia + Constants.SPLIT_DOT + column : alia + Constants.SPLIT_DOT + column);
         bk.getBaseTableSet().add(alia == null ? _alia : alia);
@@ -390,7 +417,7 @@ public class BlockParser {
         String _alia = Check.notEmpty(alia) ? alia :
                 ParseUtil.collectionToString(queryMap.keySet(), Constants.SPLIT_AND, true);
         String[] result = {"", _alia};
-        Set<String> tableSet = new HashSet<String>();
+        LinkedHashSet<String> tableSet = new LinkedHashSet<String>();
         if (Check.notEmpty(_alia)) {
             String[] split = _alia.split(Constants.SPLIT_AND);
             for (String string : split) {
@@ -398,7 +425,9 @@ public class BlockParser {
                 if (inputTables.contains(string) || inputTables.contains(fillDB(string))) {
                     tableSet.add(fillDB(string));
                 } else if (queryMap.containsKey(string.toLowerCase())) {
-                    tableSet.addAll(queryMap.get(string.toLowerCase()).getTableSet());
+                    if (queryMap.get(string.toLowerCase()).getCodeType().equals(CodeType.TABLE)) {
+                        tableSet.addAll(queryMap.get(string.toLowerCase()).getTableSet());
+                    }
                 }
             }
             result[0] = ParseUtil.collectionToString(tableSet, Constants.SPLIT_AND, true);

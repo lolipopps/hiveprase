@@ -40,7 +40,7 @@ public class HiveSqlBloodFigureParser20210830 {
     private final Stack<String> tableNameStack = new Stack<String>(); // 表名进库
     private final Stack<Boolean> joinStack = new Stack<Boolean>(); // 是否存在 关联 队列
     private final Stack<ASTNode> joinOnStack = new Stack<ASTNode>();
-    private final Map<String, Select> queryMap = new HashMap<String, Select>();
+    private final LinkedHashMap<String, Select> queryMap = new LinkedHashMap<String, Select>();
     private final HashMap<Integer, Where> whereMap = new HashMap<>();
     private final HashMap<Integer, Group> groupMap = new HashMap<>();
     private final HashMap<Integer, Join> joinMap = new HashMap<>();
