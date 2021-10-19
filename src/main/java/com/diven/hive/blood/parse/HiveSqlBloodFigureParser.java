@@ -232,7 +232,7 @@ public class HiveSqlBloodFigureParser {
                     qt.setPid(pTree.getId());
                     qt.setParent(pTree.getParent());
                     selectList.add(qt);
-                    queryMap.put(qt.getCurrent(), qt);
+//                    queryMap.put(qt.getCurrent(), qt);
 
 //                    if(withQuery){
 //                        withQueryMap.put(qt.getCurrent(), qt);
@@ -333,7 +333,7 @@ public class HiveSqlBloodFigureParser {
                             col.setToTable(selectTmp.getAlias());
                         }
                         cols.clear();
-                        queryMap.clear();
+//                        queryMap.clear();
 
 
                         if (Check.notEmpty(selectTmp.getChildList())) {
@@ -345,14 +345,14 @@ public class HiveSqlBloodFigureParser {
                             }
                         }
 
+
                         for (Select _qt : selectList) {
-                            if (selectTmp.getParent() != null && (selectTmp.getId() == _qt.getPid()
-                                    || _qt.getQid() == selectTmp.getId())) { //当前子查询才保存
-                                queryMap.put(_qt.getAlias(), _qt);
+//                            if (selectTmp.getPid() != 0 && (_qt.getPid() == selectTmp.getId() || _qt.getQid() == selectTmp.getId())) { //当前子查询才保存
+//                                queryMap.put(_qt.getAlias(), _qt);
                                 if (withQuery) {
                                     withQueryMap.put(_qt.getCurrent(), _qt);
                                 }
-                            }
+//                            }
                         }
                     }
                     break;
@@ -521,6 +521,16 @@ public class HiveSqlBloodFigureParser {
                     joinClause = true;
                     joinOnStack.push(joinOn);
                     joinOn = ast;
+                    break;
+                case HiveParser.TOK_INSERT:
+                    // 处理子查询
+                    queryMap.clear();
+                    Integer qid = ParseUtil.getQueryParentId(ast);
+                    for (Select select : selectList) {
+                        if (select.getQid() == qid || select.getPid() == qid) {
+                            queryMap.put(select.getAlias() == null ? select.getCurrent()  : select.getAlias(), select);
+                        }
+                    }
                     break;
                 case HiveParser.TOK_CTE:
                     withQuery = true;
