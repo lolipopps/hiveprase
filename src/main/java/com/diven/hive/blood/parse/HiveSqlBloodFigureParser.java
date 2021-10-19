@@ -18,6 +18,8 @@ import org.antlr.runtime.tree.Tree;
 import com.diven.hive.blood.utils.Check;
 import com.diven.hive.ql.parse.BaseSemanticAnalyzer;
 
+import static com.diven.hive.blood.utils.ParseUtil.getQueryParent;
+
 /**
  * @author huyingttai
  * @Description hive sql 解析深度优先遍历实现
@@ -217,8 +219,11 @@ public class HiveSqlBloodFigureParser {
                     qt.getBaseTableSet().addAll(tmpSelect.getBaseTableSet());
                     qt.setColumnList(tmpSelect.getColumnList());
                     if (!isOnlyTable) {
-                        qt.setQid(ParseUtil.getQueryParentId(ast));
-                        qt.setId(ParseUtil.getQueryParentId(ast));
+                        Select pq = ParseUtil.getQueryParent(ast);
+                        qt.setQid(pq.getPid());
+                        qt.setId(pq.getPid());
+                        qt.setBeginId(pq.getBeginId());
+                        qt.setEndId(pq.getEndId());
                     } else {
                         qt.setQid(ParseUtil.generateTreeId(ast));
                         qt.setId(ParseUtil.generateTreeId(ast));
@@ -254,6 +259,10 @@ public class HiveSqlBloodFigureParser {
                     selectTmp.setPid(ParseUtil.getSubQueryParentId(ast));
                     selectTmp.setColumnList(generateColLineList(cols, conditions));
                     selectTmp.setChildList(getQueryChilds(selectTmp.getId()));
+
+                    selectTmp.setBeginId(ast.getTokenStartIndex());
+                    selectTmp.setEndId(ast.getTokenStopIndex());
+
                     if (Check.notEmpty(selectTmp.getChildList())) {
                         for (Select cqt : selectTmp.getChildList()) {
                             selectTmp.getTableSet().addAll(cqt.getTableSet());  // 来源基础底表
@@ -262,6 +271,8 @@ public class HiveSqlBloodFigureParser {
                         }
                     }
                     Where whereTmp = whereMap.get(qid);
+
+
                     for (Map.Entry<Integer, Select> entry : queryMaps.entrySet()) {
                         selectTmp = entry.getValue();
                         if (selectTmp.getQid() == qid) {
@@ -271,15 +282,12 @@ public class HiveSqlBloodFigureParser {
                                 for (Column col : selectTmp.getColumnList()) {
                                     col.getBaseTableSet().addAll(whereTmp.getBaseTableSet());
                                     col.getBaseColSet().addAll(whereTmp.getBaseColSet());
-
-
                                     col.getAllColSet().addAll(whereTmp.getColSet());
                                     col.getAllTableSet().addAll(whereTmp.getTableSet());
                                 }
                             }
 
                         }
-
                     }
                     break;
                 }
@@ -319,7 +327,8 @@ public class HiveSqlBloodFigureParser {
                         selectTmp.setCurrent(tableAlias.toLowerCase());
                         selectTmp.setCodeType(CodeType.SUB_SELECT);
                         selectTmp.setPid(pTree.getId());
-
+                        selectTmp.setBeginId(ast.getTokenStartIndex());
+                        selectTmp.setEndId(ast.getTokenStopIndex());
                         for (Column col : selectTmp.getColumnList()) {
                             col.setToTable(selectTmp.getAlias());
                         }
@@ -337,7 +346,8 @@ public class HiveSqlBloodFigureParser {
                         }
 
                         for (Select _qt : selectList) {
-                            if (selectTmp.getParent() != null) { //当前子查询才保存
+                            if (selectTmp.getParent() != null && (selectTmp.getId() == _qt.getPid()
+                                    || _qt.getQid() == selectTmp.getId())) { //当前子查询才保存
                                 queryMap.put(_qt.getAlias(), _qt);
                                 if (withQuery) {
                                     withQueryMap.put(_qt.getCurrent(), _qt);
@@ -587,12 +597,10 @@ public class HiveSqlBloodFigureParser {
             }
             if (parent.getChild(0) == ast && parent.getChild(1) != null) {//是第一节点)
                 //压栈
-                unionCols.addAll(ParseUtil.cloneList(cols));
-                cols.clear();
-                conditions.clear();
+                unionCols.addAll(ParseUtil.deepCloneList(cols));
+
             } else {  //无弟节点(是第二节点)
                 //出栈
-
                 //出栈
                 for (int i = 0; i < cols.size(); i++) {
                     Column allColumn = unionCols.get(i);
@@ -605,6 +613,8 @@ public class HiveSqlBloodFigureParser {
                     allColumn.getBaseTableSet().addAll(colColumn.getBaseTableSet());
                 }
             }
+            cols.clear();
+            conditions.clear();
         }
     }
 

@@ -131,20 +131,6 @@ public final class ParseUtil {
         return qt;
     }
 
-    public static Select getQueryParent(Tree ast) {
-        Tree _tree = ast;
-        Select qt = new Select();
-        while (!(_tree = _tree.getParent()).isNil()) {
-            if (_tree.getType() == HiveParser.TOK_QUERY) {
-                qt.setPid(generateTreeId(_tree));
-                qt.setParent(BaseSemanticAnalyzer.getUnescapedName((ASTNode) _tree.getChild(1)));
-                return qt;
-            }
-        }
-        qt.setPid(0);
-        qt.setParent("NIL");
-        return qt;
-    }
 
     public static Integer getFromId(Tree ast) {
         Tree _tree = ast;
@@ -175,6 +161,26 @@ public final class ParseUtil {
         }
         return -1;
     }
+
+    public static Select getQueryParent(Tree ast) {
+        Tree _tree = ast;
+        Select qt = new Select();
+        while (!(_tree = _tree.getParent()).isNil()) {
+            if (_tree.getType() == HiveParser.TOK_QUERY) {
+                qt.setPid(generateTreeId(_tree));
+                qt.setBeginId(_tree.getTokenStartIndex());
+                qt.setEndId(_tree.getTokenStopIndex());
+                qt.setParent(BaseSemanticAnalyzer.getUnescapedName((ASTNode) _tree.getChild(1)));
+                return qt;
+            }
+        }
+        qt.setPid(0);
+        qt.setBeginId(_tree.getTokenStartIndex());
+        qt.setEndId(_tree.getTokenStopIndex());
+        qt.setParent("NIL");
+        return qt;
+    }
+
 
     public static Integer getQueryChildId(Tree ast) {
         Tree _tree = ast;
@@ -208,6 +214,22 @@ public final class ParseUtil {
 
     }
 
+    public static Column deepCloneColLine(Column col) {
+        Column newCol = new Column();
+        newCol.setToNameParse(col.getToNameParse());
+        newCol.setToTable(col.getToTable());
+        newCol.setColCondition(col.getColCondition());
+        newCol.setBaseExpr(col.getBaseExpr());
+
+        newCol.getColSet().addAll(col.getColSet());
+        newCol.getBaseColSet().addAll(col.getBaseColSet());
+        newCol.getTableSet().addAll(col.getTableSet());
+        newCol.getBaseTableSet().addAll(col.getBaseTableSet());
+        newCol.getAllColSet().addAll(col.getAllColSet());
+        newCol.getAllTableSet().addAll(col.getAllTableSet());
+        return newCol;
+
+    }
 
 
     public static void BlockToColumn(Block block, ColumnBase columnBase) {
@@ -215,6 +237,10 @@ public final class ParseUtil {
         columnBase.getColSet().addAll(block.getColSet());
         columnBase.getBaseTableSet().addAll(block.getBaseTableSet());
         columnBase.getTableSet().addAll(block.getTableSet());
+
+        columnBase.getAllColSet().addAll(block.getAllColSet());
+        columnBase.getAllTableSet().addAll(block.getAllTableSet());
+
     }
 
 
@@ -230,6 +256,15 @@ public final class ParseUtil {
         List<Column> list2 = new ArrayList<Column>(list.size());
         for (Column col : list) {
             list2.add(cloneColLine(col));
+        }
+        return list2;
+    }
+
+
+    public static List<Column> deepCloneList(List<Column> list) {
+        List<Column> list2 = new ArrayList<Column>(list.size());
+        for (Column col : list) {
+            list2.add(deepCloneColLine(col));
         }
         return list2;
     }

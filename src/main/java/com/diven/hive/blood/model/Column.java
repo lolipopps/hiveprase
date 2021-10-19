@@ -21,8 +21,7 @@ public class Column extends ColumnBase {
     private String colCondition;
     // 带条件的源字段
     private String baseExpr;
-    private Set<String> allColSet = new HashSet<>();
-    private Set<String> allTableSet = new HashSet<>();
+
     // 解析出来输出表
     private String toTable;
     private static final String CON_COLFUN = "";

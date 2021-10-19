@@ -16,10 +16,18 @@ import java.util.Set;
 
 @Data
 public class Select extends Base {
+
     private static final long serialVersionUID = 2888682925451956205L;
+
     private int id; // 当前子查询节点id
+
     private int pid; // 父节点id
+
     private int qid; // query 的id
+
+    private int beginId;
+
+    private int endId;
 
     private String current;
 
