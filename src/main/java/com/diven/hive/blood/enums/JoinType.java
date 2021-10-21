@@ -6,13 +6,13 @@ public enum JoinType {
     /**
      * column job
      */
-    LEFT_JOIN("LEFTOUTERJOIN", " LEFT JOIN "),
+    LEFT_JOIN("TOK_LEFTOUTERJOIN", " LEFT JOIN "),
     /**
      * meta job
      */
-    RIGHT_JOIN("RIGHTOUTERJOIN", " RIGHT JOIN "),
+    RIGHT_JOIN("TOK_RIGHTOUTERJOIN", " RIGHT JOIN "),
 
-    JOIN("FULLOUTERJOIN", "JOIN");
+    JOIN("TOK_FULLOUTERJOIN", "JOIN");
 
     private final String type;
 
@@ -25,24 +25,24 @@ public enum JoinType {
 
     public static JoinType getByType(String type) {
         if (Check.isEmpty(type)) {
-            throw new IllegalArgumentException("WordSegType name cannot be null or empty , just support IK or WORD   !!! ");
+            throw new IllegalArgumentException("WordSegType name cannot be null or empty , just support left right  or full     !!! ");
         }
         switch (type) {
-            case "LEFTOUTERJOIN":
+            case "TOK_LEFTOUTERJOIN":
                 return LEFT_JOIN;
-            case "RIGHTOUTERJOIN":
+            case "TOK_RIGHTOUTERJOIN":
                 return RIGHT_JOIN;
-            case "FULLOUTERJOIN":
+            case "TOK_FULLOUTERJOIN":
             case "JOIN":
                 return JOIN;
             default:
-                throw new RuntimeException("just support WORD or IK meta !!!");
+                return JOIN;
         }
     }
 
     public static JoinType getByName(String name) {
         if (Check.isEmpty(name)) {
-            throw new IllegalArgumentException("WordSegType name cannot be null or empty , just support IK or WORD   !!! ");
+            throw new IllegalArgumentException("WordSegType name cannot be null or empty , just  left right  or full  !!! ");
         }
         switch (name) {
             case " LEFT JOIN ":
@@ -52,7 +52,7 @@ public enum JoinType {
             case " JOIN ":
                 return JOIN;
             default:
-                throw new RuntimeException("just support WORD or IK meta !!!");
+                throw new RuntimeException("just support left right  or full meta !!!");
         }
     }
 }

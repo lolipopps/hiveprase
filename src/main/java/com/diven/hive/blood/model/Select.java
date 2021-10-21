@@ -47,12 +47,13 @@ public class Select extends Base {
 
     private boolean isUnion = false;
 
+    private boolean isDistinct = false;
+
     private Set<String> tableSet = new HashSet<String>();
 
     private Set<String> baseTableSet = new HashSet<String>();
 
     private List<Select> childList = new ArrayList<Select>();
-
     // 输入的字段
     private List<Column> columnList = new ArrayList<Column>();
 

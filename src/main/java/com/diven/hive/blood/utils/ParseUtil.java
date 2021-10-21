@@ -119,7 +119,7 @@ public final class ParseUtil {
         Tree _tree = ast;
         Select qt = new Select();
         while (!(_tree = _tree.getParent()).isNil()) {
-            if (_tree.getType() == HiveParser.TOK_SUBQUERY || _tree.getType() == HiveParser.TOK_QUERY ) {
+            if (_tree.getType() == HiveParser.TOK_SUBQUERY || _tree.getType() == HiveParser.TOK_QUERY) {
                 qt.setPid(generateTreeId(_tree));
                 qt.setId(generateTreeId(_tree));
                 qt.setParent(BaseSemanticAnalyzer.getUnescapedName((ASTNode) _tree.getChild(1)));
@@ -145,7 +145,7 @@ public final class ParseUtil {
     public static Integer getSubQueryParentId(Tree ast) {
         Tree _tree = ast;
         while (!(_tree = _tree.getParent()).isNil()) {
-            if (_tree.getType() == HiveParser.TOK_SUBQUERY || _tree.getType() == HiveParser.TOK_QUERY ) {
+            if (_tree.getType() == HiveParser.TOK_SUBQUERY || _tree.getType() == HiveParser.TOK_QUERY) {
                 return generateTreeId(_tree);
             }
         }
@@ -243,6 +243,24 @@ public final class ParseUtil {
 
     }
 
+    /**
+     * @param
+     * @return
+     * @description 把B块的内容拷贝到A块
+     * @author huyingtai
+     * @date 2021/10/19 8:30 下午
+     **/
+    public static void BlockToBlock(Block blockA, Block blockB) {
+        blockA.getBaseColSet().addAll(blockB.getBaseColSet());
+        blockA.getColSet().addAll(blockB.getColSet());
+        blockA.getBaseTableSet().addAll(blockB.getBaseTableSet());
+        blockA.getTableSet().addAll(blockB.getTableSet());
+
+        blockA.getAllColSet().addAll(blockB.getAllColSet());
+        blockA.getAllTableSet().addAll(blockB.getAllTableSet());
+
+    }
+
 
     public static Set<String> cloneSet(Set<String> set) {
         Set<String> set2 = new HashSet<String>(set.size());
@@ -296,7 +314,6 @@ public final class ParseUtil {
             }
         }
     }
-
 
 
 }

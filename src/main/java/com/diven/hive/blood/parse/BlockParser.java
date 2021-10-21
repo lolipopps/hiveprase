@@ -1,11 +1,9 @@
 package com.diven.hive.blood.parse;
 
 import com.diven.hive.blood.enums.CodeType;
+import com.diven.hive.blood.enums.JoinType;
 import com.diven.hive.blood.exception.SQLParseException;
-import com.diven.hive.blood.model.Block;
-import com.diven.hive.blood.model.Column;
-import com.diven.hive.blood.model.Group;
-import com.diven.hive.blood.model.Select;
+import com.diven.hive.blood.model.*;
 import com.diven.hive.blood.utils.Check;
 import com.diven.hive.blood.utils.MetaCache;
 import com.diven.hive.blood.utils.ParseUtil;
@@ -13,6 +11,8 @@ import com.diven.hive.ql.parse.ASTNode;
 import com.diven.hive.ql.parse.BaseSemanticAnalyzer;
 import com.diven.hive.ql.parse.HiveParser;
 import com.diven.hive.blood.enums.Constants;
+import com.diven.hive.ql.parse.Node;
+import jdk.nashorn.internal.scripts.JO;
 import lombok.Data;
 import org.antlr.runtime.tree.Tree;
 
@@ -42,16 +42,7 @@ public class BlockParser {
 
             Block bk1 = getBlockIteral((ASTNode) ast.getChild(0));
             Block bk2 = getBlockIteral((ASTNode) ast.getChild(1));
-
-            bk1.getColSet().addAll(bk2.getColSet());
-            bk1.getBaseColSet().addAll(bk2.getBaseColSet());
-
-            bk1.getAllColSet().addAll(bk2.getAllColSet());
-            bk1.getAllTableSet().addAll(bk2.getAllTableSet());
-
-            bk1.getTableSet().addAll(bk2.getTableSet());
-            bk1.getBaseTableSet().addAll(bk2.getBaseTableSet());
-
+            ParseUtil.BlockToBlock(bk1, bk2);
             bk1.setCondition("(" + bk1.getCondition() + " " + ast.getText() + " " + bk2.getCondition() + ")");
             bk1.setBaseExpr(" " + bk1.getBaseExpr() + " " + ast.getText() + " " + bk2.getBaseExpr() + " ");
 
@@ -82,16 +73,11 @@ public class BlockParser {
                 }
             } else {
                 Block bk2 = getBlockIteral((ASTNode) ast.getChild(1));
-                bk1.getColSet().addAll(bk2.getColSet());
-                bk1.getBaseColSet().addAll(bk2.getBaseColSet());
-
-                bk1.getAllColSet().addAll(bk2.getAllColSet());
-                bk1.getAllTableSet().addAll(bk2.getAllTableSet());
+                ParseUtil.BlockToBlock(bk1, bk2);
 
                 bk1.setCondition(bk1.getCondition() + " " + ast.getText() + " " + bk2.getCondition());
                 bk1.setBaseExpr(bk1.getBaseExpr() + " " + ast.getText() + " " + bk2.getBaseExpr());
-                bk1.getTableSet().addAll(bk2.getTableSet());
-                bk1.getBaseTableSet().addAll(bk2.getBaseTableSet());
+
             }
             return bk1;
         } else if (ast.getType() == HiveParser.TOK_FUNCTIONDI) { // 处理各种函数
@@ -125,13 +111,21 @@ public class BlockParser {
                 col.setBaseExpr(col.getBaseExpr() + " " + func);
                 return col;
             } else if ("between".equalsIgnoreCase(fun)) {
-                col.setCondition(getBlockIteral((ASTNode) ast.getChild(2)).getCondition()
-                        + " between " + getBlockIteral((ASTNode) ast.getChild(3)).getCondition()
-                        + " and " + getBlockIteral((ASTNode) ast.getChild(4)).getCondition());
+                Block begBk = getBlockIteral((ASTNode) ast.getChild(2));
+                Block betBk = getBlockIteral((ASTNode) ast.getChild(3));
+                Block andBk = getBlockIteral((ASTNode) ast.getChild(4));
+                col.setCondition(begBk.getCondition()
+                        + " between " + betBk.getCondition()
+                        + " and " + andBk.getCondition());
 
-                col.setBaseExpr(getBlockIteral((ASTNode) ast.getChild(2)).getBaseExpr()
-                        + " between " + getBlockIteral((ASTNode) ast.getChild(3)).getBaseExpr()
-                        + " and " + getBlockIteral((ASTNode) ast.getChild(4)).getBaseExpr());
+                col.setBaseExpr(begBk.getBaseExpr()
+                        + " between " + betBk.getBaseExpr()
+                        + " and " + andBk.getBaseExpr());
+                ParseUtil.BlockToBlock(col, begBk);
+                ParseUtil.BlockToBlock(col, betBk);
+                ParseUtil.BlockToBlock(col, andBk);
+
+
                 return col;
             } else if (ast.getChildren().size() > 1 && ast.getChild(ast.getChildCount() - 1).getType() == HiveParser.TOK_WINDOWSPEC) { // 开窗函数
                 Block aggrCol = new Block();
@@ -179,37 +173,31 @@ public class BlockParser {
                 }
                 break;
             case HiveParser.TOK_DISTRIBUTEBY:
-                Block partBk = getBlockIteral((ASTNode) ast.getChild(0));
-
-                up.getColSet().addAll(partBk.getColSet());
-                up.getBaseColSet().addAll(partBk.getBaseColSet());
-
-                up.getAllColSet().addAll(partBk.getAllColSet());
-                up.getAllTableSet().addAll(partBk.getAllTableSet());
-
-                up.getTableSet().addAll(partBk.getTableSet());
-                up.getBaseTableSet().addAll(partBk.getBaseTableSet());
-
+                Block partBk = new Block();
+                for (Node as : ast.getChildren()) {
+                    Block tmp = getBlockIteral((ASTNode) as);
+                    ParseUtil.BlockToBlock(partBk, tmp);
+                    partBk.setCondition(partBk.getCondition() == null ? tmp.getCondition() : partBk.getCondition() + "," + tmp.getCondition());
+                    partBk.setBaseExpr(partBk.getBaseExpr() == null ? tmp.getBaseExpr() : partBk.getBaseExpr() + "," + tmp.getBaseExpr());
+                }
+                ParseUtil.BlockToBlock(up, partBk);
                 up.setBaseExpr(up.getBaseExpr() + " partition by  " + partBk.getBaseExpr());
                 up.setCondition(up.getCondition() + " partition by " + partBk.getCondition());
-
                 break;
             case HiveParser.TOK_ORDERBY:
                 String rank = "asc";
                 if (ast.getChild(0).getType() == HiveParser.TOK_TABSORTCOLNAMEDESC) {
                     rank = "desc";
                 }
-                Block orderBk = getBlockIteral((ASTNode) ast.getChild(0).getChild(0));
+                Block orderBk = new Block();
+                for (Node as : ast.getChildren()) {
+                    Block tmp = getBlockIteral((ASTNode) as.getChildren().get(0));
+                    ParseUtil.BlockToBlock(orderBk, tmp);
+                    orderBk.setCondition(orderBk.getCondition() == null ? tmp.getCondition() : orderBk.getCondition() + "," + tmp.getCondition());
+                    orderBk.setBaseExpr(orderBk.getBaseExpr() == null ? tmp.getBaseExpr() : orderBk.getBaseExpr() + "," + tmp.getBaseExpr());
+                }
 
-                up.getColSet().addAll(orderBk.getColSet());
-                up.getBaseColSet().addAll(orderBk.getBaseColSet());
-
-                up.getAllColSet().addAll(orderBk.getAllColSet());
-                up.getAllTableSet().addAll(orderBk.getAllTableSet());
-
-                up.getTableSet().addAll(orderBk.getTableSet());
-                up.getBaseTableSet().addAll(orderBk.getBaseTableSet());
-
+                ParseUtil.BlockToBlock(up, orderBk);
                 up.setBaseExpr(up.getBaseExpr() + " order by " + orderBk.getBaseExpr() + " " + rank + ")");
                 up.setCondition(up.getCondition() + " order by " + orderBk.getCondition() + " " + rank + ")");
                 break;
@@ -268,6 +256,16 @@ public class BlockParser {
         return sb.toString();
     }
 
+    public Join getJoinCondiction(ASTNode ast) {
+        Join join = new Join();
+        ASTNode condiction = (ASTNode) ast.getChild(2);
+        Block condictionBK = getBlockIteral(condiction);
+        ParseUtil.BlockToColumn(condictionBK,join);
+        join.setJoinExpr(condictionBK.getBaseExpr());
+        System.out.println(ast.getText());
+        join.setJoinType(JoinType.getByType(ast.getText()));
+        return join;
+    }
 
     /**
      * 解析获得列名或者字符数字等和条件

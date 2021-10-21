@@ -38,7 +38,7 @@ public class HiveSqlBloodFigureParser {
     private final Stack<String> tableNameStack = new Stack<String>(); // 表名进库
     private final Stack<Boolean> joinStack = new Stack<Boolean>(); // 是否存在 关联 队列
     private final Stack<ASTNode> joinOnStack = new Stack<ASTNode>();
-
+    private final Stack<Join> joinCondiction = new Stack<Join>();
     private final LinkedHashMap<String, Select> queryMap = new LinkedHashMap<String, Select>(); // 存储每个嵌套的语句
     private final LinkedHashMap<String, Select> withQueryMap = new LinkedHashMap<String, Select>(); // 存储每个嵌套的语句
     private final Map<Integer, Select> queryMaps = new HashMap<Integer, Select>();
@@ -349,9 +349,9 @@ public class HiveSqlBloodFigureParser {
                         for (Select _qt : selectList) {
 //                            if (selectTmp.getPid() != 0 && (_qt.getPid() == selectTmp.getId() || _qt.getQid() == selectTmp.getId())) { //当前子查询才保存
 //                                queryMap.put(_qt.getAlias(), _qt);
-                                if (withQuery) {
-                                    withQueryMap.put(_qt.getCurrent(), _qt);
-                                }
+                            if (withQuery) {
+                                withQueryMap.put(_qt.getCurrent(), _qt);
+                            }
 //                            }
                         }
                     }
@@ -368,21 +368,16 @@ public class HiveSqlBloodFigureParser {
 
                 case HiveParser.TOK_GROUPBY: //3、过滤条件的处理select类
                     Group group = blockParser.getGroupByCondition(ast);
+                    group.setId(ParseUtil.getSubQueryParentId(ast));
                     groupMap.put(group.getId(), group);
                     break;
 
                 default:
                     //1、过滤条件的处理join类
-                    if (joinOn != null && joinOn.getTokenStartIndex() == ast.getTokenStartIndex() && joinOn.getTokenStopIndex() == ast.getTokenStopIndex()) {
-                        ASTNode astCon = (ASTNode) ast.getChild(1);
-                        Block joinBLock = blockParser.getBlockIteral(astCon);
-                        Join join = new Join();
+                    if (joinOn != null) {
+                        Join join = joinCondiction.peek();
                         join.setId(ParseUtil.getSubQueryParentId(ast));
-                        ParseUtil.BlockToColumn(joinBLock, join);
-                        join.setJoinType(JoinType.getByType(ast.getText().substring(4)));
-                        join.setJoinExpr(joinBLock.getBaseExpr());
                         joinList.add(join);
-                        selectList.get(selectList.size() - 1).setJoin(join);
                         joinMap.put(join.getId(), join);
                         break;
                     }
@@ -512,7 +507,6 @@ public class HiveSqlBloodFigureParser {
                 case HiveParser.TOK_RIGHTOUTERJOIN:
                 case HiveParser.TOK_LEFTOUTERJOIN:
                 case HiveParser.TOK_JOIN:
-
                 case HiveParser.TOK_LEFTSEMIJOIN:
                 case HiveParser.TOK_MAPJOIN:
                 case HiveParser.TOK_FULLOUTERJOIN:
@@ -521,6 +515,8 @@ public class HiveSqlBloodFigureParser {
                     joinClause = true;
                     joinOnStack.push(joinOn);
                     joinOn = ast;
+                    Join join = new Join();
+                    joinCondiction.push(join);
                     break;
                 case HiveParser.TOK_INSERT:
                     // 处理子查询
@@ -528,7 +524,7 @@ public class HiveSqlBloodFigureParser {
                     Integer qid = ParseUtil.getQueryParentId(ast);
                     for (Select select : selectList) {
                         if (select.getQid() == qid || select.getPid() == qid) {
-                            queryMap.put(select.getAlias() == null ? select.getCurrent()  : select.getAlias(), select);
+                            queryMap.put(select.getAlias() == null ? select.getCurrent() : select.getAlias(), select);
                         }
                     }
                     break;
@@ -562,6 +558,24 @@ public class HiveSqlBloodFigureParser {
                     }
                     joinClause = joinStack.pop();
                     joinOn = joinOnStack.pop();
+                    Join join = joinCondiction.pop();
+                    queryMap.clear();
+                    Integer qid = ParseUtil.getQueryParentId(ast);
+                    for (Select select : selectList) {
+                        if (select.getQid() == qid || select.getPid() == qid) {
+                            queryMap.put(select.getAlias() == null ? select.getCurrent() : select.getAlias(), select);
+                        }
+                    }
+                    // 处理join
+                    join = blockParser.getJoinCondiction(ast);
+                    Iterator<Entry<String, Select>> it = queryMap.entrySet().iterator();
+                    Entry<String, Select> tail = null;
+                    while (it.hasNext()) {
+                        tail = it.next();
+                    }
+                    if (tail != null) {
+                        tail.getValue().setJoin(join);
+                    }
                     break;
                 case HiveParser.TOK_QUERY:
                     processUnionStack(ast, parent); //union的子节点
@@ -570,7 +584,7 @@ public class HiveSqlBloodFigureParser {
                     if (ast.getChild(0).getType() == HiveParser.TOK_INSERT_INTO) {
                         break;
                     }
-                    Integer qid = ParseUtil.getQueryParentId(ast);
+                    qid = ParseUtil.getQueryParentId(ast);
                     Select select = selectList.get(selectList.size() - 1);
                     if (select.getQid() == qid && select.getColSelect()) {
                         List<Column> colsTemp = generateColLineList(cols, conditions);
