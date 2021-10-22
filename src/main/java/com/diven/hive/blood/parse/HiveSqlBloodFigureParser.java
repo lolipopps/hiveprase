@@ -476,17 +476,25 @@ public class HiveSqlBloodFigureParser {
         int numCh = ast.getChildCount();
         if (numCh > 0) {
             LinkedList<ASTNode> list = new LinkedList<>();
-            for (int num = 0; num < numCh; num++) {
-                ASTNode child = (ASTNode) ast.getChild(num);
-                if (child.getType() == HiveParser.TOK_CTE) { // with 语法要优先处理
-                    list.addFirst(child);
-                } else {
-                    list.addLast(child);
+            if (ast.getType() == HiveParser.TOK_LATERAL_VIEW || ast.getType() == HiveParser.TOK_LATERAL_VIEW_OUTER) {
+                for (int num = numCh - 1; num >= 0; num--) {
+                    list.addLast((ASTNode) ast.getChild(num));
+                }
+            } else {
+                for (int num = 0; num < numCh; num++) {
+                    ASTNode child = (ASTNode) ast.getChild(num);
+                    if (child.getType() == HiveParser.TOK_CTE) { // with 语法要优先处理 lateral 语法
+                        list.addFirst(child);
+                    } else {
+                        list.addLast(child);
+                    }
                 }
             }
             for (ASTNode li : list) {
                 parseIteral(li);
             }
+
+
         }
     }
 
