@@ -4,7 +4,6 @@ import java.util.*;
 import java.util.Map.Entry;
 
 import com.diven.hive.blood.enums.CodeType;
-import com.diven.hive.blood.enums.JoinType;
 import com.diven.hive.blood.model.*;
 import com.diven.hive.blood.enums.Constants;
 import com.diven.hive.blood.exception.SQLParseException;
@@ -17,8 +16,6 @@ import com.diven.hive.ql.parse.ParseDriver;
 import org.antlr.runtime.tree.Tree;
 import com.diven.hive.blood.utils.Check;
 import com.diven.hive.ql.parse.BaseSemanticAnalyzer;
-
-import static com.diven.hive.blood.utils.ParseUtil.getQueryParent;
 
 /**
  * @author huyingttai
@@ -421,7 +418,6 @@ public class HiveSqlBloodFigureParser {
 
     /**
      * 获得要解析的名称
-     *
      * @param ast
      * @param bk
      * @return
@@ -612,7 +608,6 @@ public class HiveSqlBloodFigureParser {
                     queryMap.clear();
                     queryMaps.clear();
                     break;
-
             }
         }
     }

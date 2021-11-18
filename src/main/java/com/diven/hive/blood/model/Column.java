@@ -1,9 +1,5 @@
 package com.diven.hive.blood.model;
 
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.Set;
-
 import lombok.Data;
 
 
@@ -13,7 +9,7 @@ import lombok.Data;
  * @author divenwu
  */
 @Data
-public class Column extends ColumnBase {
+public class Column extends BlockBase {
     private static final long serialVersionUID = -1690060728674289074L;
     // 解析sql出来的列名称
     private String toNameParse;

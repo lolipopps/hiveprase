@@ -4,7 +4,7 @@ import com.diven.hive.blood.enums.JoinType;
 import lombok.Data;
 
 @Data
-public class Join extends ColumnBase{
+public class Join extends BlockBase {
 
     private String joinExpr;
     private JoinType joinType;

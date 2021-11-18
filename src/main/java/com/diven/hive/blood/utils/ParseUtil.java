@@ -12,7 +12,7 @@ import java.util.Map.Entry;
 import com.diven.hive.blood.exception.SQLParseException;
 import com.diven.hive.blood.model.Block;
 import com.diven.hive.blood.model.Column;
-import com.diven.hive.blood.model.ColumnBase;
+import com.diven.hive.blood.model.BlockBase;
 import com.diven.hive.blood.model.Select;
 import com.diven.hive.ql.parse.ASTNode;
 import com.diven.hive.ql.parse.BaseSemanticAnalyzer;
@@ -232,14 +232,14 @@ public final class ParseUtil {
     }
 
 
-    public static void BlockToColumn(Block block, ColumnBase columnBase) {
-        columnBase.getBaseColSet().addAll(block.getBaseColSet());
-        columnBase.getColSet().addAll(block.getColSet());
-        columnBase.getBaseTableSet().addAll(block.getBaseTableSet());
-        columnBase.getTableSet().addAll(block.getTableSet());
+    public static void BlockToColumn(Block block, BlockBase blockBase) {
+        blockBase.getBaseColSet().addAll(block.getBaseColSet());
+        blockBase.getColSet().addAll(block.getColSet());
+        blockBase.getBaseTableSet().addAll(block.getBaseTableSet());
+        blockBase.getTableSet().addAll(block.getTableSet());
 
-        columnBase.getAllColSet().addAll(block.getAllColSet());
-        columnBase.getAllTableSet().addAll(block.getAllTableSet());
+        blockBase.getAllColSet().addAll(block.getAllColSet());
+        blockBase.getAllTableSet().addAll(block.getAllTableSet());
 
     }
 

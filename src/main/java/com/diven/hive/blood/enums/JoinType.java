@@ -12,7 +12,9 @@ public enum JoinType {
      */
     RIGHT_JOIN("TOK_RIGHTOUTERJOIN", " RIGHT JOIN "),
 
-    JOIN("TOK_FULLOUTERJOIN", "JOIN");
+    FULL_JOIN("TOK_FULLOUTERJOIN", "FULL JOIN"),
+
+    JOIN("TOK_JOIN", "JOIN");
 
     private final String type;
 
@@ -22,6 +24,7 @@ public enum JoinType {
         this.type = type;
         this.name = name;
     }
+
 
     public static JoinType getByType(String type) {
         if (Check.isEmpty(type)) {
@@ -33,6 +36,7 @@ public enum JoinType {
             case "TOK_RIGHTOUTERJOIN":
                 return RIGHT_JOIN;
             case "TOK_FULLOUTERJOIN":
+                return FULL_JOIN;
             case "JOIN":
                 return JOIN;
             default:
@@ -49,10 +53,16 @@ public enum JoinType {
                 return LEFT_JOIN;
             case " RIGHT JOIN ":
                 return RIGHT_JOIN;
+            case " FULL JOIN ":
+                return JOIN;
             case " JOIN ":
                 return JOIN;
             default:
                 throw new RuntimeException("just support left right  or full meta !!!");
         }
+    }
+
+    public String getName() {
+        return name;
     }
 }

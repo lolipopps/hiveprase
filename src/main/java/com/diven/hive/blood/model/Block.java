@@ -13,7 +13,7 @@ import java.util.Set;
  */
 
 @Data
-public class Block extends Base {
+public class Block extends BlockBase {
     private static final long serialVersionUID = -4862449285786384062L;
     private String condition;
     private String baseExpr;

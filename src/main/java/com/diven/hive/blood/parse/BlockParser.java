@@ -12,9 +12,7 @@ import com.diven.hive.ql.parse.BaseSemanticAnalyzer;
 import com.diven.hive.ql.parse.HiveParser;
 import com.diven.hive.blood.enums.Constants;
 import com.diven.hive.ql.parse.Node;
-import jdk.nashorn.internal.scripts.JO;
 import lombok.Data;
-import org.antlr.runtime.tree.Tree;
 
 import java.util.*;
 
@@ -93,6 +91,13 @@ public class BlockParser {
                 col.setCondition(col.getCondition() + " not ");
                 col.setBaseExpr(col.getBaseExpr() + " not ");
             }
+            if ("tok_string".equalsIgnoreCase(fun) || "tok_bigint".equalsIgnoreCase(fun) || "tok_int".equalsIgnoreCase(fun)
+                    || "tok_double".equalsIgnoreCase(fun) || "tok_float".equalsIgnoreCase(fun)) {
+               String type = fun.split("_")[1];
+                col.setBaseExpr(" cast("+col.getBaseExpr()+" as "+type+")");
+                col.setCondition(" cast("+col.getCondition()+" as "+type+")");
+                return col;
+            }
             if ("when".equalsIgnoreCase(fun)) {
                 col.setCondition(getWhenCondition(ast, 1));
                 col.setBaseExpr(getWhenCondition(ast, 2));
@@ -124,8 +129,6 @@ public class BlockParser {
                 ParseUtil.BlockToBlock(col, begBk);
                 ParseUtil.BlockToBlock(col, betBk);
                 ParseUtil.BlockToBlock(col, andBk);
-
-
                 return col;
             } else if (ast.getChildren().size() > 1 && ast.getChild(ast.getChildCount() - 1).getType() == HiveParser.TOK_WINDOWSPEC) { // 开窗函数
                 Block aggrCol = new Block();
@@ -153,6 +156,19 @@ public class BlockParser {
             column.setCondition(column.getCondition() + "[" + key.getCondition() + "]");
             column.setBaseExpr(column.getBaseExpr() + "[" + key.getBaseExpr() + "]");
             return column;
+        } else if (ast.getType() == HiveParser.KW_REGEXP) {
+            Block bk1 = getBlockIteral((ASTNode) ast.getChild(0));
+            Block bk2 = getBlockIteral((ASTNode) ast.getChild(1));
+            ParseUtil.BlockToBlock(bk1, bk2);
+            bk1.setBaseExpr(bk1.getBaseExpr() + " REGEXP " + bk2.getBaseExpr());
+            bk1.setCondition(bk1.getCondition() + " REGEXP " + bk2.getCondition());
+            return bk1;
+        } else if (ast.getType() == HiveParser.TOK_STRING || ast.getType() == HiveParser.TOK_INT
+                || ast.getType() == HiveParser.TOK_BIGINT || ast.getType() == HiveParser.TOK_BOOLEAN
+                || ast.getType() == HiveParser.TOK_DOUBLE || ast.getType() == HiveParser.TOK_FLOAT
+        ) {
+            System.out.println("---");
+            return null;
         } else {
             return parseBlock(ast);
         }
@@ -260,7 +276,7 @@ public class BlockParser {
         Join join = new Join();
         ASTNode condiction = (ASTNode) ast.getChild(2);
         Block condictionBK = getBlockIteral(condiction);
-        ParseUtil.BlockToColumn(condictionBK,join);
+        ParseUtil.BlockToColumn(condictionBK, join);
         join.setJoinExpr(condictionBK.getBaseExpr());
         System.out.println(ast.getText());
         join.setJoinType(JoinType.getByType(ast.getText()));
@@ -275,6 +291,7 @@ public class BlockParser {
      * @return
      */
     public Block parseBlock(ASTNode ast) {
+
         if (ast.getType() == HiveParser.DOT
                 && ast.getChild(0).getType() == HiveParser.TOK_TABLE_OR_COL
                 && ast.getChild(0).getChildCount() == 1

@@ -13,7 +13,6 @@ import com.diven.hive.ql.parse.BaseSemanticAnalyzer;
 import com.diven.hive.ql.parse.HiveParser;
 import com.diven.hive.ql.parse.ParseDriver;
 import com.diven.hive.blood.enums.Constants;
-import com.diven.hive.blood.model.*;
 import org.antlr.runtime.tree.Tree;
 import java.util.*;
 import static com.diven.hive.blood.utils.HqlUtil.notNormalCol;

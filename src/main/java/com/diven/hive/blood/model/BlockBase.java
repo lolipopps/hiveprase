@@ -9,7 +9,7 @@ import java.util.Set;
 import java.util.TreeSet;
 
 @Data
-public class ColumnBase extends Base{
+public class BlockBase extends Base{
 	public int id;
 	// 来源字段
 	public Set<String> tableSet = new TreeSet<>();
